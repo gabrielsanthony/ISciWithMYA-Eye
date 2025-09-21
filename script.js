@@ -1,10 +1,9 @@
-// === CONFIG ===
-const TM_MODEL_BASE = "https://teachablemachine.withgoogle.com/models/2qgr_e5GJ/";
-const MODEL_URL = TM_MODEL_BASE + "model.json";
-const METADATA_URL = TM_MODEL_BASE + "metadata.json";
 const STEM_LABEL = "STEM Teacher";
-const THRESHOLD = 0.5; // 50%
+const THRESHOLD = 0.5;
 const verdictEl = document.getElementById("verdict");
+const meterEl = document.getElementById("stemMeter");
+const stemFill = document.getElementById("stemFill");
+const stemLabel = document.getElementById("stemLabel");
 
 let model, maxPredictions;
 let webcamOn = false;
@@ -89,23 +88,26 @@ async function predictFromCanvas() {
 }
 
 function renderPreds(prediction) {
-  // Render the list
+  // (optional) keep raw scores updated in the hidden list
   predsEl.innerHTML = "";
   prediction.forEach(p => {
     const li = document.createElement("li");
-    const label = document.createElement("span");
-    const prob = document.createElement("strong");
-    label.textContent = p.className;
-    prob.textContent = (p.probability * 100).toFixed(1) + "%";
-    li.appendChild(label);
-    li.appendChild(prob);
+    li.textContent = `${p.className} ${(p.probability * 100).toFixed(1)}%`;
     predsEl.appendChild(li);
   });
 
-  // Verdict: show if STEM Teacher ≥ 50%
+  // Find STEM class prob
   const stem = prediction.find(
     p => p.className.trim().toLowerCase() === STEM_LABEL.toLowerCase()
   );
+  const pct = Math.round((stem?.probability ?? 0) * 100);
+
+  // Update meter
+  stemFill.style.width = `${pct}%`;
+  stemLabel.textContent = `STEM ${pct}%`;
+  meterEl.setAttribute("aria-valuenow", String(pct));
+
+  // Verdict
   if (stem && stem.probability >= THRESHOLD) {
     verdictEl.textContent = "You’re a STEM Educator ✅";
     verdictEl.classList.add("ok");
