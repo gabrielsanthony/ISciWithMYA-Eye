@@ -2,6 +2,9 @@
 const TM_MODEL_BASE = "https://teachablemachine.withgoogle.com/models/2qgr_e5GJ/";
 const MODEL_URL = TM_MODEL_BASE + "model.json";
 const METADATA_URL = TM_MODEL_BASE + "metadata.json";
+const STEM_LABEL = "STEM Teacher";
+const THRESHOLD = 0.5; // 50%
+const verdictEl = document.getElementById("verdict");
 
 let model, maxPredictions;
 let webcamOn = false;
@@ -86,6 +89,7 @@ async function predictFromCanvas() {
 }
 
 function renderPreds(prediction) {
+  // Render the list
   predsEl.innerHTML = "";
   prediction.forEach(p => {
     const li = document.createElement("li");
@@ -97,4 +101,16 @@ function renderPreds(prediction) {
     li.appendChild(prob);
     predsEl.appendChild(li);
   });
+
+  // Verdict: show if STEM Teacher ≥ 50%
+  const stem = prediction.find(
+    p => p.className.trim().toLowerCase() === STEM_LABEL.toLowerCase()
+  );
+  if (stem && stem.probability >= THRESHOLD) {
+    verdictEl.textContent = "You’re a STEM Educator ✅";
+    verdictEl.classList.add("ok");
+  } else {
+    verdictEl.textContent = "";
+    verdictEl.classList.remove("ok");
+  }
 }
