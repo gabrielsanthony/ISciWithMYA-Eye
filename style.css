@@ -1,26 +1,12 @@
-:root { --gap: 1rem; --border: 2px; }
-* { box-sizing: border-box; font-family: system-ui, Arial, sans-serif; }
-body { margin: 0; background: #fafafa; colour: #111; }
-.container { max-width: 760px; margin: 0 auto; padding: 1rem; }
-h1 { margin-bottom: .5rem; }
-.controls { display: flex; gap: var(--gap); flex-wrap: wrap; margin: 1rem 0; }
-button, .upload { padding: .6rem .9rem; border: var(--border) solid #111; background:#fff; cursor:pointer; border-radius: .5rem; }
-.upload input { display: none; }
-.stage { display: grid; place-items: center; background: #fff; border: var(--border) dashed #bbb; padding: .5rem; border-radius: .75rem; }
-#canvas { width: 100%; height: auto; max-width: 480px; }
-.results { margin-top: 1rem; }
-#predictions { list-style: none; padding: 0; margin: 0; }
-#predictions li { padding: .4rem .6rem; border-bottom: 1px solid #eee; display:flex; justify-content:space-between; }
-.note { colour:#555; font-size:.9rem; }
+/* hide the old list */
+.hidden { display: none; }
 
-.verdict {
-  margin: .75rem 0 .5rem;
-  font-weight: 700;
-  padding: .6rem .8rem;
-  border-radius: .5rem;
-  display: inline-block;
-}
-.verdict.ok {
-  background: #eaffea;
-  border: 2px solid #208a20;
-}
+/* progress bar */
+.meter { position: relative; max-width: 480px; height: 20px; background: #eee;
+         border: 2px solid #bbb; border-radius: 999px; margin: .5rem 0 1rem; }
+.meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg,#7bd88f,#2aa84a);
+              border-radius: 999px; transition: width .25s ease; }
+.meter-label { position: absolute; top: -26px; left: 0; font-weight: 700; }
+
+.verdict { margin: .25rem 0 .5rem; font-weight: 700; padding: .4rem .6rem; border-radius: .5rem; display:inline-block; }
+.verdict.ok { background:#eaffea; border:2px solid #208a20; }
