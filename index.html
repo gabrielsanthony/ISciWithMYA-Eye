@@ -1,0 +1,42 @@
+index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teachable Machine Demo</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Teachable Machine Image library (TensorFlow.js under the hood) -->
+  <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>My Teachable Machine</h1>
+
+    <section class="controls">
+      <button id="startCamBtn">Use Camera</button>
+      <label class="upload">
+        <input id="fileInput" type="file" accept="image/*" />
+        Choose Image
+      </label>
+      <button id="stopCamBtn" disabled>Stop Camera</button>
+    </section>
+
+    <section class="stage">
+      <canvas id="canvas" width="320" height="240" aria-label="preview"></canvas>
+      <video id="webcam" playsinline muted hidden></video>
+    </section>
+
+    <section class="results">
+      <h2>Predictions</h2>
+      <ul id="predictions"></ul>
+    </section>
+
+    <footer>
+      <p class="note">Runs fully in your browser. No images are uploaded. © You.</p>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
