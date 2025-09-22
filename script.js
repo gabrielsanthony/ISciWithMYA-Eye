@@ -5,6 +5,11 @@ const meterEl = document.getElementById("stemMeter");
 const stemFill = document.getElementById("stemFill");
 const stemLabel = document.getElementById("stemLabel");
 
+// === CONFIG ===
+const TM_MODEL_BASE = "https://teachablemachine.withgoogle.com/models/2qgr_e5GJ/";
+const MODEL_URL = TM_MODEL_BASE + "model.json";
+const METADATA_URL = TM_MODEL_BASE + "metadata.json";
+
 let model, maxPredictions;
 let webcamOn = false;
 let webcamStream = null;
@@ -17,13 +22,30 @@ const startCamBtn = document.getElementById("startCamBtn");
 const stopCamBtn = document.getElementById("stopCamBtn");
 const fileInput = document.getElementById("fileInput");
 
-// Load model ASAP
+// Load model ASAP with clear diagnostics
 (async function initModel() {
+  console.log("Loading TFJS & TM…", {
+    MODEL_URL,
+    METADATA_URL,
+    tmImageLoaded: !!window.tmImage,
+    tfLoaded: !!window.tf
+  });
+
+  // Quick reachability checks (helps spot 404/403/CORS immediately)
+  const mRes = await fetch(MODEL_URL, { mode: "cors" });
+  if (!mRes.ok) throw new Error(`model.json HTTP ${mRes.status}`);
+  const mdRes = await fetch(METADATA_URL, { mode: "cors" });
+  if (!mdRes.ok) throw new Error(`metadata.json HTTP ${mdRes.status}`);
+
+  // Now load via TM helper
   model = await tmImage.load(MODEL_URL, METADATA_URL);
   maxPredictions = model.getTotalClasses();
+  console.log("Model loaded OK. Classes:", maxPredictions);
 })().catch(err => {
-  alert("Failed to load model. Check the model URL.");
-  console.error(err);
+  alert("Failed to load model. See console for details.");
+  console.error("Model load error:", err);
+  console.error("MODEL_URL:", MODEL_URL);
+  console.error("METADATA_URL:", METADATA_URL);
 });
 
 // Camera flow
