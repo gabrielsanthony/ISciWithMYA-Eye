@@ -51,7 +51,10 @@ const fileInput = document.getElementById("fileInput");
 // Camera flow
 startCamBtn.addEventListener("click", async () => {
   try {
-    webcamStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    // Use the selfie (front) camera
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "user" } }   // was "environment"
+    });
     videoEl.srcObject = webcamStream;
     await videoEl.play();
     webcamOn = true;
@@ -77,9 +80,15 @@ stopCamBtn.addEventListener("click", () => {
 // Draw + predict repeatedly when webcam is on
 async function loopCamera() {
   if (!webcamOn) return;
-  // Fit video into canvas
   const w = canvasEl.width, h = canvasEl.height;
+
+  // Mirror horizontally for a natural selfie view
+  ctx.save();
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
   ctx.drawImage(videoEl, 0, 0, w, h);
+  ctx.restore();
+
   await predictFromCanvas();
   requestAnimationFrame(loopCamera);
 }
