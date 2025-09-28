@@ -1,3 +1,4 @@
+// ===== UI + thresholds =====
 const STEM_LABEL = "STEM Teacher";
 const THRESHOLD = 0.5;
 const verdictEl = document.getElementById("verdict");
@@ -5,7 +6,7 @@ const meterEl = document.getElementById("stemMeter");
 const stemFill = document.getElementById("stemFill");
 const stemLabel = document.getElementById("stemLabel");
 
-// === CONFIG ===
+// ===== Teachable Machine config =====
 const TM_MODEL_BASE = "https://teachablemachine.withgoogle.com/models/2qgr_e5GJ/";
 const MODEL_URL = TM_MODEL_BASE + "model.json";
 const METADATA_URL = TM_MODEL_BASE + "metadata.json";
@@ -14,6 +15,7 @@ let model, maxPredictions;
 let webcamOn = false;
 let webcamStream = null;
 
+// DOM refs
 const videoEl = document.getElementById("webcam");
 const canvasEl = document.getElementById("canvas");
 const ctx = canvasEl.getContext("2d");
@@ -22,22 +24,22 @@ const startCamBtn = document.getElementById("startCamBtn");
 const stopCamBtn = document.getElementById("stopCamBtn");
 const fileInput = document.getElementById("fileInput");
 
-// Load model ASAP with clear diagnostics
+// ===== Load model with clear diagnostics =====
 (async function initModel() {
   console.log("Loading TFJS & TM…", {
-    MODEL_URL,
-    METADATA_URL,
+    MODEL_URL, METADATA_URL,
     tmImageLoaded: !!window.tmImage,
     tfLoaded: !!window.tf
   });
 
-  // Quick reachability checks (helps spot 404/403/CORS immediately)
-  const mRes = await fetch(MODEL_URL, { mode: "cors" });
+  // Reachability checks (help spot 404/403/CORS immediately)
+  const [mRes, mdRes] = await Promise.all([
+    fetch(MODEL_URL, { mode: "cors" }),
+    fetch(METADATA_URL, { mode: "cors" }),
+  ]);
   if (!mRes.ok) throw new Error(`model.json HTTP ${mRes.status}`);
-  const mdRes = await fetch(METADATA_URL, { mode: "cors" });
   if (!mdRes.ok) throw new Error(`metadata.json HTTP ${mdRes.status}`);
 
-  // Now load via TM helper
   model = await tmImage.load(MODEL_URL, METADATA_URL);
   maxPredictions = model.getTotalClasses();
   console.log("Model loaded OK. Classes:", maxPredictions);
@@ -48,41 +50,78 @@ const fileInput = document.getElementById("fileInput");
   console.error("METADATA_URL:", METADATA_URL);
 });
 
-// Camera flow
-startCamBtn.addEventListener("click", async () => {
+// =======================================================
+// Camera helpers — reliably pick the FRONT (selfie) camera
+// =======================================================
+async function getVideoInputs() {
+  // Ask for permission so device labels are populated
+  let tmp;
   try {
-    // Use the selfie (front) camera
-    webcamStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "user" } }   // was "environment"
-    });
-    videoEl.srcObject = webcamStream;
-    await videoEl.play();
-    webcamOn = true;
-    startCamBtn.disabled = true;
-    stopCamBtn.disabled = false;
-    videoEl.hidden = true; // we’ll draw to canvas instead
-    loopCamera();
-  } catch (e) {
-    alert("Camera permission denied or not available.");
-    console.error(e);
+    tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+  } catch (_) {
+    // Permission might already be granted; ignore
   }
-});
+  if (tmp) tmp.getTracks().forEach(t => t.stop());
 
-stopCamBtn.addEventListener("click", () => {
-  if (webcamStream) {
-    webcamStream.getTracks().forEach(t => t.stop());
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices.filter(d => d.kind === "videoinput");
+}
+
+function pickFrontDevice(devices) {
+  const frontRe = /(front|user|self|face)/i;
+  // Best guess using labels
+  let front = devices.find(d => frontRe.test(d.label));
+  // Safari/Android sometimes put front as index 1
+  if (!front && devices.length > 1) front = devices[1];
+  return front || devices[0];
+}
+
+async function startCamera(preferFront = true) {
+  const devices = await getVideoInputs();
+  if (!devices.length) throw new Error("No cameras found");
+
+  const chosen = preferFront ? pickFrontDevice(devices) : devices[0];
+
+  // Stop any previous stream
+  if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
+
+  // Try by exact deviceId first; fall back to facingMode if needed
+  try {
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: chosen.deviceId } }
+    });
+  } catch (e) {
+    console.warn("deviceId exact failed, falling back to facingMode 'user'", e);
+    webcamStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "user" } }
+    });
   }
+
+  videoEl.srcObject = webcamStream;
+  await videoEl.play();
+
+  webcamOn = true;
+  startCamBtn.disabled = true;
+  stopCamBtn.disabled = false;
+  videoEl.hidden = true; // we draw to canvas instead
+  loopCamera();
+}
+
+// ===== Buttons =====
+startCamBtn.addEventListener("click", () => startCamera(true)); // prefer front
+stopCamBtn.addEventListener("click", () => {
+  if (webcamStream) webcamStream.getTracks().forEach(t => t.stop());
   webcamOn = false;
   startCamBtn.disabled = false;
   stopCamBtn.disabled = true;
 });
 
-// Draw + predict repeatedly when webcam is on
+// ===== Draw + predict (mirrored for selfie) =====
 async function loopCamera() {
   if (!webcamOn) return;
   const w = canvasEl.width, h = canvasEl.height;
 
-  // Mirror horizontally for a natural selfie view
+  // Mirror horizontally so it feels like a selfie
   ctx.save();
   ctx.translate(w, 0);
   ctx.scale(-1, 1);
@@ -93,13 +132,12 @@ async function loopCamera() {
   requestAnimationFrame(loopCamera);
 }
 
-// Image upload flow
+// ===== Image upload flow =====
 fileInput.addEventListener("change", () => {
   const file = fileInput.files?.[0];
   if (!file) return;
   const img = new Image();
   img.onload = async () => {
-    // Fit image to canvas
     const scale = Math.min(canvasEl.width / img.width, canvasEl.height / img.height);
     const w = img.width * scale, h = img.height * scale;
     ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
@@ -109,17 +147,16 @@ fileInput.addEventListener("change", () => {
   img.src = URL.createObjectURL(file);
 });
 
-// Predict using pixels from canvas
+// ===== Prediction =====
 async function predictFromCanvas() {
   if (!model) return;
-  const prediction = await model.predict(canvasEl, false); // no horizontal flip
-  // Sort by probability desc
+  const prediction = await model.predict(canvasEl, false);
   prediction.sort((a, b) => b.probability - a.probability);
   renderPreds(prediction);
 }
 
 function renderPreds(prediction) {
-  // (optional) keep raw scores updated in the hidden list
+  // (optional hidden list for debugging)
   predsEl.innerHTML = "";
   prediction.forEach(p => {
     const li = document.createElement("li");
@@ -127,18 +164,14 @@ function renderPreds(prediction) {
     predsEl.appendChild(li);
   });
 
-  // Find STEM class prob
-  const stem = prediction.find(
-    p => p.className.trim().toLowerCase() === STEM_LABEL.toLowerCase()
-  );
+  // STEM bar + verdict
+  const stem = prediction.find(p => p.className.trim().toLowerCase() === STEM_LABEL.toLowerCase());
   const pct = Math.round((stem?.probability ?? 0) * 100);
 
-  // Update meter
   stemFill.style.width = `${pct}%`;
   stemLabel.textContent = `STEM ${pct}%`;
   meterEl.setAttribute("aria-valuenow", String(pct));
 
-  // Verdict
   if (stem && stem.probability >= THRESHOLD) {
     verdictEl.textContent = "You’re a STEM Educator ✅";
     verdictEl.classList.add("ok");
