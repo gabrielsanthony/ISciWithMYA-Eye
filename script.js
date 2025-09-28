@@ -156,8 +156,10 @@ function renderPreds(prediction) {
   if (stem && stem.probability >= THRESHOLD) {
     verdictEl.textContent = "You’re a STEM Educator ✅";
     verdictEl.classList.add("ok");
+    verdictEl.classList.remove("bad");
   } else {
-    verdictEl.textContent = "";
+    verdictEl.textContent = "Imposter ❌";
+    verdictEl.classList.add("bad");
     verdictEl.classList.remove("ok");
   }
 }
