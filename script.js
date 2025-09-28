@@ -22,7 +22,6 @@ const ctx = canvasEl.getContext("2d");
 const predsEl = document.getElementById("predictions");
 const startCamBtn = document.getElementById("startCamBtn");
 const stopCamBtn = document.getElementById("stopCamBtn");
-const fileInput = document.getElementById("fileInput");
 
 // ===== Load model with clear diagnostics =====
 (async function initModel() {
@@ -32,7 +31,7 @@ const fileInput = document.getElementById("fileInput");
     tfLoaded: !!window.tf
   });
 
-  // Reachability checks (help spot 404/403/CORS immediately)
+  // Reachability checks (spot 404/403/CORS immediately)
   const [mRes, mdRes] = await Promise.all([
     fetch(MODEL_URL, { mode: "cors" }),
     fetch(METADATA_URL, { mode: "cors" }),
@@ -58,9 +57,7 @@ async function getVideoInputs() {
   let tmp;
   try {
     tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-  } catch (_) {
-    // Permission might already be granted; ignore
-  }
+  } catch (_) { /* permission may already be granted */ }
   if (tmp) tmp.getTracks().forEach(t => t.stop());
 
   const devices = await navigator.mediaDevices.enumerateDevices();
@@ -69,9 +66,8 @@ async function getVideoInputs() {
 
 function pickFrontDevice(devices) {
   const frontRe = /(front|user|self|face)/i;
-  // Best guess using labels
   let front = devices.find(d => frontRe.test(d.label));
-  // Safari/Android sometimes put front as index 1
+  // Some browsers list front at index 1 with no label
   if (!front && devices.length > 1) front = devices[1];
   return front || devices[0];
 }
@@ -103,7 +99,7 @@ async function startCamera(preferFront = true) {
   webcamOn = true;
   startCamBtn.disabled = true;
   stopCamBtn.disabled = false;
-  videoEl.hidden = true; // we draw to canvas instead
+  videoEl.hidden = true; // draw to canvas instead
   loopCamera();
 }
 
@@ -132,25 +128,10 @@ async function loopCamera() {
   requestAnimationFrame(loopCamera);
 }
 
-// ===== Image upload flow =====
-fileInput.addEventListener("change", () => {
-  const file = fileInput.files?.[0];
-  if (!file) return;
-  const img = new Image();
-  img.onload = async () => {
-    const scale = Math.min(canvasEl.width / img.width, canvasEl.height / img.height);
-    const w = img.width * scale, h = img.height * scale;
-    ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
-    ctx.drawImage(img, (canvasEl.width - w)/2, (canvasEl.height - h)/2, w, h);
-    await predictFromCanvas();
-  };
-  img.src = URL.createObjectURL(file);
-});
-
 // ===== Prediction =====
 async function predictFromCanvas() {
   if (!model) return;
-  const prediction = await model.predict(canvasEl, false);
+  const prediction = await model.predict(canvasEl, false); // no extra flip; we already mirrored
   prediction.sort((a, b) => b.probability - a.probability);
   renderPreds(prediction);
 }
